@@ -1,0 +1,11 @@
+A ruby sudoku solver, loosely based on constraint satisfaction techniques[1]
+
+usage:
+
+ruby sudoku.rb < puzzle_1
+
+The two included puzzles are actually non-trivial and require
+guessing, so they take a long time to solve. Simpler problems are
+usually trivially solved within a second.
+
+[1] http://en.wikipedia.org/wiki/Constraint_satisfaction_problem
