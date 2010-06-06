@@ -1,4 +1,16 @@
+module Debug
+  def debug str
+    puts str if @verbose
+  end
+
+  def verbose!
+    @verbose = true
+  end
+end
+
 class Cell
+  include Debug
+
   attr_accessor :value
   attr_accessor :possibilities
 
@@ -13,9 +25,9 @@ class Cell
   end
 
   def can_be values
-#    puts "can be #{values.inspect} from #{self.possibilities.inspect}"
+    debug "can be #{values.inspect} from #{self.possibilities.inspect}"
     self.possibilities = possibilities & values
-#    puts "now can be #{self.possibilities.inspect}"
+    debug "now can be #{self.possibilities.inspect}"
 
     if possibilities.size == 1
       self.value = possibilities.first
@@ -40,7 +52,53 @@ class Cell
 
 end
 
+
+# Constraint to be implemented:
+#
+# For puzzle
+#
+# 125|739|8  
+# 694|281|537
+# 873| 5 |  9
+# -----------
+#  5 |3 8|   
+#   7|   |38 
+# 3  | 9 |4  
+# -----------
+#  61|8 3| 52
+#    |5  |  3
+# 532|9  |6 8
+#
+# the top right corner value (0,8) can be determined to be 4. By row
+# elimination on row 0, it can either be 4 or 6 (along with 0,7);
+# However if you examine square (1,2) (middle-right), it can be seen
+# that 4 cannot be in cells (3-5,8) as it is already in cell
+# (5,6). Therefore the only place that 4 can appear in column 8 is in
+# cell (0,8)
+#
+# For puzzle
+#
+# 7 3| 84|6  
+# 294| 7 |  3
+# 6 8|3  | 47
+# -----------
+# 132|7  |   
+# 589|43 | 7 
+# 467|   |53 
+# -----------
+# 82 |  7|31 
+# 371|   | 98
+# 94 |813|7  
+#
+# cell (5,5) must be 8. Via row/column elimination, either (3,5) or
+# (5,5) must be 8, as none of the other cells in square (1,1) can
+# be. However, if (3,5) is 8, then in square (1,2), (5,8) must be 8, as
+# the other cells are eliminated by row elimination on rows 3 & 4. But
+# this conflicts with (7,8), therefore (3,5) cannot be 8, resulting in 8
+# for (5,5).
 class Puzzle
+  include Debug
+
   attr_accessor :cells
 
   def initialize input
@@ -48,28 +106,32 @@ class Puzzle
     9.times do |row|
       cells[row] = []
       9.times do |col|
-#        puts "#{row},#{col} = #{input[row][col]}"
         cells[row][col] = Cell.new input[row][col]
       end
     end
-   
   end
 
   def copy
-    self.class.new cells
+    copy = self.class.new cells
+    copy.verbose! if @verbose
+    copy
   end
-
+  
   def solve
     last_filled = 0
     while last_filled < filled
+      # try twice, there's a bug that will sometimes skip constrained
+      # cells
+      last_filled = eliminate
       last_filled = eliminate
     end
     unless solved?
-      cells.each_with_index do |row,i|
+      debug "after elimination:\n#{self}"
+      cells.each_with_index do |row, i|
         row.each_with_index do |cell, j|
           if !cell.value
             cell.possibilities.each do |value|
-              puts "trying #{value} at #{i},#{j}"
+              debug "trying #{value} at #{i},#{j}"
               guess = copy
               guess.cells[i][j].value = value
               guess.solve
@@ -77,7 +139,7 @@ class Puzzle
                 self.cells = guess.cells
                 return
               end
-              puts "#{value} at #{i},#{j} doesn't work"
+              debug "#{value} at #{i},#{j} doesn't work"
             end
           end
         end
@@ -166,17 +228,32 @@ class Reader
 
   def initialize input_stream = $stdin
     @input = []
-    9.times {
-      line = input_stream.readline
-      data = line.chomp.split("")
-      raise "Odd line '#{line}' #{data.inspect} (#{data.length})" unless data.length == 9
-      data = data.collect {|c| 
-        c = c.to_i 
-        c if c > 0
-      }
-      puts data.collect {|c| c.nil? ? "." : c }.join("")
-      @input << data
-    }
+    while @input.length < 9
+      line = input_stream.readline.chomp
+      data = line.split("")
+      unless data.length == 9
+        puts "Ignoring odd line: '#{line}' #{data.inspect} (#{data.length})"
+      else
+        data = data.collect {|c| 
+          c = c.to_i 
+          c if c > 0
+        }
+        puts data.collect {|c| c.nil? ? "." : c }.join("")
+        @input << data
+      end
+    end
   end
 
+end
+
+if __FILE__ == $0
+  puts "Enter puzzle, 1 row per line (values outside 1-9 are treated as blank):"
+  reader = Reader.new $stdin
+  
+  puzzle = Puzzle.new reader.input
+
+  puzzle.verbose!
+  
+  puzzle.solve
+  puts puzzle
 end
