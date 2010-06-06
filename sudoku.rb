@@ -160,3 +160,23 @@ class Puzzle
   end
 
 end
+
+class Reader
+  attr_accessor :input
+
+  def initialize input_stream = $stdin
+    @input = []
+    9.times {
+      line = input_stream.readline
+      data = line.chomp.split("")
+      raise "Odd line '#{line}' #{data.inspect} (#{data.length})" unless data.length == 9
+      data = data.collect {|c| 
+        c = c.to_i 
+        c if c > 0
+      }
+      puts data.collect {|c| c.nil? ? "." : c }.join("")
+      @input << data
+    }
+  end
+
+end
