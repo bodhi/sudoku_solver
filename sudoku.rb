@@ -3,8 +3,13 @@ class Cell
   attr_accessor :possibilities
 
   def initialize value
-    self.value = value.to_i
-    self.possibilities = value ? [] : (1..9).to_a
+    if value.is_a? Cell
+      self.value = value.value
+      self.possibilities = value.possibilities.dup
+    else
+      self.value = value
+      self.possibilities = value ? [] : (1..9).to_a
+    end
   end
 
   def can_be values
@@ -25,16 +30,12 @@ class Cell
   end
 
   def value= value
-    @value = value 
+    @value = value
     self.possibilities = []
   end
 
   def to_s
     value ? value.to_s : " "
-  end
-
-  def to_i
-    value
   end
 
 end
@@ -47,18 +48,40 @@ class Puzzle
     9.times do |row|
       cells[row] = []
       9.times do |col|
-        puts "#{row},#{col} = #{input[row][col]}"
+#        puts "#{row},#{col} = #{input[row][col]}"
         cells[row][col] = Cell.new input[row][col]
       end
     end
    
   end
 
+  def copy
+    self.class.new cells
+  end
+
   def solve
     last_filled = 0
     while last_filled < filled
-      last_filled = filled
-      eliminate
+      last_filled = eliminate
+    end
+    unless solved?
+      cells.each_with_index do |row,i|
+        row.each_with_index do |cell, j|
+          if !cell.value
+            cell.possibilities.each do |value|
+              puts "trying #{value} at #{i},#{j}"
+              guess = copy
+              guess.cells[i][j].value = value
+              guess.solve
+              if guess.solved?
+                self.cells = guess.cells
+                return
+              end
+              puts "#{value} at #{i},#{j} doesn't work"
+            end
+          end
+        end
+      end
     end
   end
 
@@ -91,20 +114,12 @@ class Puzzle
   end
 
   def cell_values row, col
-#    row /= 3
-#    row *= 3
-#    col /= 3
-#    col *= 3
-    
-#    square = cells[row,3].collect { |c| c[col, 3]}.flatten
     possible_values square(row,col)
   end
 
   def square row, col
-    n_row = row / 3
-    n_row *= 3
-    n_col = col / 3
-    n_col *= 3
+    n_row = (row / 3) * 3
+    n_col = (col / 3) * 3
     
     cells[n_row,3].collect { |c| c[n_col, 3]}.flatten
   end
